@@ -1,0 +1,12 @@
+{
+  "appId": "com.zafar.khuraak",
+  "appName": "Khuraak",
+  "webDir": "www",
+  "backgroundColor": "#000000",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_khuraak",
+      "iconColor": "#E9B44C"
+    }
+  }
+}
