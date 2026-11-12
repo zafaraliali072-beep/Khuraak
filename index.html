@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Khuraak</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one phone-width column, summary ring on top, meal timeline below, tab bar at the bottom.
+   Palette: true-black AMOLED dark with neutral greys, amber for calories and carbs, coral protein, teal fat. */
+:root{
+  --bg:#000000; --s1:#0e0e0e; --s2:#171717; --line:#262626;
+  --fg:#ededed; --mute:#8e8e8e; --accent:#e9b44c; --ink:#000000;
+  --prot:#ee7d62; --carb:#e9b44c; --fat:#62b6a4;
+  --good:#6cc08b; --warn:#e9b44c; --bad:#e8675a;
+  --display:"Bricolage Grotesque","DM Sans",system-ui,sans-serif;
+  --body:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#edf1ed; --s1:#ffffff; --s2:#f1f5f1; --line:#d6dfd7;
+    --fg:#15201a; --mute:#5b6c60; --accent:#a86d00; --ink:#ffffff;
+    --prot:#c44a2d; --carb:#a86d00; --fat:#23806e;
+    --good:#2b8a50; --warn:#a86d00; --bad:#bf3a2b; color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#edf1ed; --s1:#ffffff; --s2:#f1f5f1; --line:#d6dfd7;
+  --fg:#15201a; --mute:#5b6c60; --accent:#a86d00; --ink:#ffffff;
+  --prot:#c44a2d; --carb:#a86d00; --fat:#23806e;
+  --good:#2b8a50; --warn:#a86d00; --bad:#bf3a2b; color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#000000; --s1:#0e0e0e; --s2:#171717; --line:#262626;
+  --fg:#ededed; --mute:#8e8e8e; --accent:#e9b44c; --ink:#000000;
+  --prot:#ee7d62; --carb:#e9b44c; --fat:#62b6a4;
+  --good:#6cc08b; --warn:#e9b44c; --bad:#e8675a; color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#app{max-width:560px;margin:0 auto;padding-block:14px 108px}
+h1,h2,h3{font-family:var(--display);margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.mute{color:var(--mute)}
+.row{display:flex;align-items:center;gap:10px}
+.spread{justify-content:space-between}
+.grow{flex:1;min-width:0}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.brand{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-.02em}
+.brand i{font-style:normal;color:var(--accent)}
+.daynav{display:flex;align-items:center;gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:3px}
+.daynav button{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:var(--mute)}
+.daynav button:disabled{opacity:.3;cursor:default}
+.daynav .lbl{min-width:92px;text-align:center;font-weight:600;font-size:13px}
+.streak{font-size:12px;color:var(--mute);margin-top:2px}
+
+/* cards */
+.card{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:16px}
+.stack{display:grid;gap:12px}
+.sect{display:flex;align-items:baseline;justify-content:space-between;margin:20px 2px 8px}
+.sect h2{font-size:17px}
+.sect span{font-size:12px;color:var(--mute)}
+
+/* hero */
+.hero{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+.ring{position:relative;width:132px;height:132px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .t{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .t b{font-family:var(--display);font-size:27px;line-height:1}
+.ring .t small{font-size:11px;color:var(--mute);margin-top:3px}
+.macro{display:grid;gap:3px}
+.macro + .macro{margin-top:9px}
+.macro .h{display:flex;justify-content:space-between;font-size:12px;color:var(--mute)}
+.macro .h b{color:var(--fg);font-weight:600}
+.bar{height:7px;border-radius:99px;background:var(--s2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--c,var(--accent));transition:width .35s ease}
+.left{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--mute)}
+.left b{color:var(--fg)}
+
+/* next meal */
+.next{display:flex;gap:12px;align-items:center;background:var(--s2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.next .when{font-family:var(--display);font-weight:700;font-size:20px;min-width:62px}
+.next.late .when{color:var(--bad)}
+.next small{display:block;color:var(--mute);font-size:12px}
+
+/* meals */
+.meal{background:var(--s1);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.meal.done{border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+.meal .head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:13px 14px;width:100%;text-align:left}
+.time{font-family:var(--display);font-weight:700;font-size:14px;width:50px;color:var(--accent)}
+.meal.done .time{color:var(--good)}
+.meal .nm{font-weight:600;font-size:15px}
+.meal .it{font-size:13px;color:var(--mute);margin-top:2px}
+.meal.done .it{opacity:.7}
+.chk{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;color:transparent;transition:.15s}
+.meal.done .chk{background:var(--good);border-color:var(--good);color:var(--ink)}
+.detail{padding:0 14px 14px;display:grid;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 11px;border-radius:99px;border:1px solid var(--line);background:var(--s2);font-size:13px;font-weight:600}
+.chip.on{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+.mini{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute)}
+.mini b{color:var(--fg)}
+.mini .p b{color:var(--prot)} .mini .c b{color:var(--carb)} .mini .f b{color:var(--fat)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:12px;background:var(--accent);color:var(--ink);font-weight:700}
+.btn.ghost{background:var(--s2);color:var(--fg);border:1px solid var(--line)}
+.btn.bad{background:var(--bad);color:#fff}
+.btn.block{width:100%}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+
+/* water */
+.water .big{font-family:var(--display);font-size:26px;font-weight:700}
+.drops{display:grid;grid-template-columns:repeat(18,1fr);gap:3px;margin:10px 0 12px}
+.drops i{height:20px;border-radius:5px;background:var(--s2)}
+.drops i.on{background:var(--fat)}
+
+/* habit list */
+.hab{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:11px 2px;border-bottom:1px solid var(--line)}
+.hab:last-child{border-bottom:0}
+.hab .box{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center;color:transparent;flex:none}
+.hab.on .box{background:var(--good);border-color:var(--good);color:var(--ink)}
+.hab small{display:block;color:var(--mute);font-size:12px}
+
+/* extras */
+.ex{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ex:last-child{border-bottom:0}
+
+/* micro list */
+.mi{padding:12px 0;border-bottom:1px solid var(--line)}
+.mi:last-child{border-bottom:0}
+.mi .l{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mi .l b{font-weight:600}
+.mi small{display:block;color:var(--mute);font-size:12px;margin-top:4px}
+.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--s2);color:var(--mute)}
+.pill.good{background:color-mix(in srgb,var(--good) 20%,transparent);color:var(--good)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+
+/* forms */
+label.f{display:grid;gap:5px;font-size:12px;color:var(--mute);font-weight:600}
+input[type=text],input[type=number],input[type=time],textarea{width:100%;background:var(--s2);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:16px}
+textarea{min-height:110px;font-size:12px;font-family:ui-monospace,monospace}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* charts */
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--mute);font-size:10px;font-family:var(--body)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat div{background:var(--s2);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-family:var(--display);font-size:20px}
+.stat small{font-size:11px;color:var(--mute)}
+.note{background:var(--s2);border-radius:12px;padding:12px 14px;font-size:14px}
+.note.good{border-left:3px solid var(--good)} .note.warn{border-left:3px solid var(--warn)} .note.bad{border-left:3px solid var(--bad)}
+
+/* shopping */
+.shop{display:grid;grid-template-columns:auto 1fr auto 92px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.shop:last-child{border-bottom:0}
+.shop.on .nm{color:var(--mute);text-decoration:line-through}
+.shop input{padding:7px 9px;font-size:14px;text-align:right}
+.shop .q{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+
+/* tab bar */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding:6px max(10px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));z-index:5}
+.tabs nav{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs button{display:grid;justify-items:center;gap:2px;padding:6px 0;font-size:11px;font-weight:600;color:var(--mute);border-radius:12px}
+.tabs button.on{color:var(--accent)}
+.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* sheet + toast */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:560px;background:var(--s1);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow:auto;display:grid;gap:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13px;font-weight:600;z-index:30;pointer-events:none}
+.seg{display:flex;background:var(--s2);border-radius:12px;padding:3px;gap:2px}
+.seg button{flex:1;padding:8px 6px;border-radius:9px;font-weight:600;font-size:13px;color:var(--mute)}
+.seg button.on{background:var(--s1);color:var(--fg);box-shadow:0 1px 0 var(--line)}
+@media (max-width:380px){.hero{grid-template-columns:112px 1fr}.ring{width:112px;height:112px}.shop{grid-template-columns:auto 1fr auto 78px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- v2: plans, editor, time picker ---- */
+.tabs nav{grid-template-columns:repeat(6,1fr)}
+.tabs button{font-size:10.5px}
+.time{width:56px;line-height:1.05;color:var(--accent)}
+.time b{display:block;font-family:var(--display);font-size:17px;font-weight:700}
+.time small{font-size:11px;font-weight:700;color:var(--mute)}
+.meal.done .time b{color:var(--good)}
+.btn.full{width:100%}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--mute);font-weight:600;padding:6px 2px;margin-bottom:6px}
+.plan{display:grid;gap:10px}
+.plan.on{border-color:var(--accent)}
+.plan .nm{font-family:var(--display);font-size:18px;font-weight:700}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--accent);color:var(--ink)}
+.field{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:16px;text-align:left}
+.field span{color:var(--mute);font-size:12px;font-weight:600}
+.irow{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.irow:last-child{border-bottom:0}
+.irow b{font-weight:600;font-size:14px}
+.irow .sub{font-size:12px;color:var(--mute)}
+.stepper{display:flex;align-items:center;background:var(--s2);border-radius:10px;border:1px solid var(--line)}
+.stepper button{width:34px;height:34px;font-size:20px;line-height:1;color:var(--fg);font-weight:600}
+.xbtn{width:34px;height:34px;border-radius:10px;color:var(--mute);font-size:22px;line-height:1}
+.fitem{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 2px;border-bottom:1px solid var(--line)}
+.fitem small{display:block;color:var(--mute);font-size:12px}
+.fitem .plus{width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:18px;flex:none}
+.flist{max-height:34vh;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:0 12px;background:var(--s2)}
+.tpdisp{font-family:var(--display);font-size:54px;font-weight:700;text-align:center;line-height:1}
+.grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.tcell{padding:12px 0;border-radius:12px;background:var(--s2);border:1px solid var(--line);font-weight:700;text-align:center;font-size:15px}
+.tcell.on{background:var(--accent);border-color:var(--accent);color:var(--ink)}
+.lbl2{font-size:12px;color:var(--mute);font-weight:600;margin-bottom:6px}
+.sumbar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--mute)}
+.sumbar b{color:var(--fg)}
+.other{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border-radius:12px;font-size:13px}
+</style>
+
+<div id="app"></div>
+<div class="tabs"><nav id="tabs"></nav></div>
+<div id="toastHost"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= food library (values per 1 unit) ================= */
+function F(id,n,um,us,step,def,p,c,f,m,g){
+  return{id:id,n:n,um:um,us:us,step:step,def:def,p:p,c:c,f:f,
+    mi:{fe:m[0],ca:m[1],b12:m[2],zn:m[3],mg:m[4],k:m[5],vc:m[6],fib:m[7]},g:g};
+}
+var FOODS=[
+ F("egg","Anda",1,"pc",1,2,6.3,.6,5,[.9,25,.5,.6,6,63,0,0],["egg",1]),
+ F("roti","Roti",1,"roti",1,2,4.2,25,.6,[1.7,12,0,.9,45,125,0,3.8],["atta",35]),
+ F("rice","Chawal (pakka)",100,"g",.5,2,2.7,28,.3,[.4,10,0,.5,12,35,0,.4],["rice",33]),
+ F("dal","Dal (1 katori pakki)",1,"katori",1,1,8,18,3,[2.6,40,0,1.2,45,330,1,5],["dal",30]),
+ F("soya","Soya chunks (dry)",10,"g",.5,3,5.2,3.3,.1,[2,35,0,.5,27,230,0,1.3],["soya",10]),
+ F("milk","Milk",100,"ml",.5,2,3.4,4.8,4,[0,120,.45,.4,11,150,0,0],["milk",100]),
+ F("dahi","Dahi",100,"g",.5,1,3.5,4.5,4,[.1,120,.4,.5,12,155,.5,0],["dahi",100]),
+ F("pnut","Peanuts",10,"g",.5,2,2.6,1.6,4.9,[.46,9,0,.33,17,70,0,.9],["pnut",10]),
+ F("rchana","Roasted chana",10,"g",.5,4,2,5.5,.5,[.6,20,0,.3,12,80,0,1.7],["chana",10]),
+ F("kchana","Kaala chana (dry)",10,"g",.5,5,2,6,.6,[.5,19,0,.3,11,80,0,1.7],["chana",10]),
+ F("banana","Banana",1,"pc",1,1,1.3,27,.4,[.3,6,0,.2,32,420,10,3],["banana",1]),
+ F("khajoor","Khajoor",1,"pc",1,4,.2,6,0,[.1,5,0,.03,4,54,0,.7],["khajoor",8.3]),
+ F("oil","Oil",1,"tsp",.5,1,0,0,5,[0,0,0,0,0,0,0,0],["oil",5]),
+ F("sabzi","Sabzi (lauki/tori, pakki)",100,"g",.5,1,1,4,.2,[.5,20,0,.2,15,150,8,2],["sabzi",100]),
+ F("palak","Palak sabzi (pakki)",100,"g",.5,1,2.5,3.5,.4,[2.4,90,0,.5,60,400,20,2],["sabzi",100]),
+ F("salad","Salad (kheera, tamatar)",100,"g",.5,1,.8,3.5,.2,[.4,15,0,.2,12,200,12,1],["sabzi",100]),
+ F("nimbu","Nimbu",1,"pc",1,1,.2,2,0,[.1,10,0,0,3,40,20,.5],["nimbu",1]),
+ F("paneer","Paneer",50,"g",1,1,9,.6,10,[.1,200,.4,1,10,50,0,0],["paneer",50]),
+ F("bread","Bread slice",1,"slice",1,2,3,13,1,[.8,40,0,.4,12,40,0,.8],["bread",1]),
+ F("oats","Oats (dry)",10,"g",1,4,1.3,6.6,.7,[.5,5,0,.4,18,43,0,1],["oats",10]),
+ F("aloo","Aloo (ubla)",100,"g",.5,1,2,20,.1,[.8,10,0,.3,23,380,10,1.8],["aloo",100]),
+ F("rajma","Rajma (pakka)",100,"g",.5,1,8,20,.5,[2.2,40,0,1,45,400,1,6],["rajma",100]),
+ F("sprouts","Moong sprouts",100,"g",.5,1,7,14,.5,[1.5,30,0,1,50,330,15,4],["moong",100])
+];
+var FOOD={};FOODS.forEach(function(f){FOOD[f.id]=f});
+
+var GROC=[
+ {id:"egg",n:"Eggs",u:"pc"},{id:"milk",n:"Milk",u:"ml"},{id:"dahi",n:"Dahi",u:"g"},{id:"pnut",n:"Peanuts",u:"g"},
+ {id:"soya",n:"Soya chunks",u:"g"},{id:"chana",n:"Chana (roasted + kaala)",u:"g"},{id:"rice",n:"Chawal (kaccha)",u:"g"},
+ {id:"atta",n:"Atta",u:"g"},{id:"dal",n:"Dal (kaccha)",u:"g"},{id:"banana",n:"Banana",u:"pc"},{id:"khajoor",n:"Khajoor",u:"g"},
+ {id:"oil",n:"Oil",u:"ml"},{id:"sabzi",n:"Sabzi + salad",u:"g"},{id:"nimbu",n:"Nimbu",u:"pc"},{id:"paneer",n:"Paneer",u:"g"},
+ {id:"bread",n:"Bread",u:"pc"},{id:"oats",n:"Oats",u:"g"},{id:"aloo",n:"Aloo",u:"g"},{id:"rajma",n:"Rajma (kaccha)",u:"g"},{id:"moong",n:"Moong sprouts",u:"g"}
+];
+
+var MICRO=[
+ {k:"fe",n:"Iron",u:"mg",t:17,s:"Soya, chana, dal, khajoor"},
+ {k:"ca",n:"Calcium",u:"mg",t:1000,s:"Milk, dahi, paneer"},
+ {k:"b12",n:"Vitamin B12",u:"mcg",t:2.4,s:"Eggs, milk, dahi"},
+ {k:"zn",n:"Zinc",u:"mg",t:12,s:"Soya, chana, peanuts, eggs"},
+ {k:"mg",n:"Magnesium",u:"mg",t:400,s:"Peanuts, chana, soya, banana"},
+ {k:"k",n:"Potassium",u:"mg",t:3500,s:"Banana, dahi, milk, khajoor"},
+ {k:"vc",n:"Vitamin C",u:"mg",t:80,s:"Nimbu, salad, sabzi. Yahan sabse zyada kami hoti hai"},
+ {k:"fib",n:"Fibre",u:"g",t:40,s:"Chana, dal, roti, sabzi"}
+];
+var HABITS=[
+ {id:"nimbu",n:"Nimbu / amla / orange",s:"Vitamin C, iron ka absorption badhta hai",add:{vc:30}},
+ {id:"salad",n:"Salad (kheera, tamatar)",s:"Vitamin C + fibre",add:{vc:15,fib:3}},
+ {id:"sabzi",n:"Palak ya gajar sabzi",s:"Vitamin A",flag:"Vitamin A"},
+ {id:"dhoop",n:"15 min dhoop",s:"Vitamin D (subah 7:30 se 10 ke beech)",flag:"Vitamin D"},
+ {id:"namak",n:"Nimbu paani + chutki namak",s:"Cycle ke baad electrolytes",flag:"Electrolytes"},
+ {id:"alsi",n:"1 tsp alsi dahi mein",s:"Omega-3",flag:"Omega-3"}
+];
+var PRESETS=[
+ {n:"1 anda",p:6,c:.5,f:5},{n:"1 roti",p:3,c:24,f:1},{n:"1 banana",p:1,c:27,f:0},
+ {n:"1 glass milk",p:6.5,c:9.5,f:7},{n:"Dahi 100g",p:3.5,c:5,f:4},{n:"Peanuts 30g",p:8,c:5,f:15},
+ {n:"2 khajoor",p:.5,c:12,f:0},{n:"Chawal 1 katori",p:3,c:42,f:.3}
+];
+
+/* ================= helpers ================= */
+function pad(n){return n<10?"0"+n:""+n}
+function dkey(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function todayKey(){return dkey(new Date())}
+function parseKey(k){var a=k.split("-");return new Date(+a[0],+a[1]-1,+a[2])}
+function addDays(k,n){var d=parseKey(k);d.setDate(d.getDate()+n);return dkey(d)}
+function r0(n){return Math.round(n)}
+function r1(n){return Math.round(n*10)/10}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function uid(p){return p+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function toMin(t){var a=t.split(":");return +a[0]*60+ +a[1]}
+function fmt12(t){var a=t.split(":"),h=+a[0],m=a[1],ap=h>=12?"PM":"AM";h=h%12;if(h===0)h=12;return{t:h+":"+m,ap:ap,s:h+":"+m+" "+ap}}
+function microZero(){var o={};MICRO.forEach(function(x){o[x.k]=0});return o}
+
+/* ---- items / meals / plans ---- */
+function itemVals(it){
+  var q=it.qty==null?1:it.qty,v={kcal:0,p:0,c:0,f:0,mi:microZero(),n:"",lab:""};
+  if(it.fid&&FOOD[it.fid]){
+    var f=FOOD[it.fid];
+    v.p=f.p*q;v.c=f.c*q;v.f=f.f*q;
+    MICRO.forEach(function(x){v.mi[x.k]=(f.mi[x.k]||0)*q});
+    v.n=f.n;v.lab=r1(q*f.um)+" "+f.us;
+  }else{
+    v.p=(it.p||0)*q;v.c=(it.c||0)*q;v.f=(it.f||0)*q;
+    v.n=it.n||"Item";v.lab=q===1?"1 portion":r1(q)+" portion";
+  }
+  v.kcal=4*v.p+4*v.c+9*v.f;
+  if(!it.fid&&it.kcal)v.kcal=it.kcal*q;
+  return v;
+}
+function mealTotals(m){
+  var t={kcal:0,p:0,c:0,f:0,mi:microZero()};
+  (m.items||[]).forEach(function(it){
+    var v=itemVals(it);t.kcal+=v.kcal;t.p+=v.p;t.c+=v.c;t.f+=v.f;
+    MICRO.forEach(function(x){t.mi[x.k]+=v.mi[x.k]});
+  });
+  return t;
+}
+function planTotals(pl){
+  var t={kcal:0,p:0,c:0,f:0};
+  pl.meals.forEach(function(m){var x=mealTotals(m);t.kcal+=x.kcal;t.p+=x.p;t.c+=x.c;t.f+=x.f});
+  return t;
+}
+function sortedMeals(pl){return pl.meals.slice().sort(function(a,b){return toMin(a.time)-toMin(b.time)})}
+function mealSummary(m){
+  if(!m.items.length)return "Abhi kuch add nahi hua";
+  return m.items.map(function(it){var v=itemVals(it);return v.lab+" "+v.n}).join(" · ");
+}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+
+/* ================= state ================= */
+var KEY="khuraak.v1";
+function defaults(){
+  return{settings:{startWeight:null,startDate:null,theme:"auto",notif:false,listDays:30},
+    plans:[],active:null,days:{},bought:{},spend:{}};
+}
+function normalize(j){
+  var d=defaults();
+  if(!j||typeof j!=="object")return d;
+  var js=j.settings||{};
+  for(var k in js)d.settings[k]=js[k];
+  d.days=j.days||{};d.bought=j.bought||{};d.spend=j.spend||{};
+  if(j.plans&&j.plans.length){d.plans=j.plans;d.active=j.active||j.plans[0].id}
+  return d;
+}
+function load(){
+  try{var j=JSON.parse(localStorage.getItem(KEY)||"null");if(j)return normalize(j)}catch(e){}
+  return defaults();
+}
+var S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function plan(id){
+  for(var i=0;i<S.plans.length;i++)if(S.plans[i].id===id)return S.plans[i];
+  return null;
+}
+var EMPTY={id:"",name:"",kcal:3000,protein:120,water:3500,meals:[]};
+function P(){return plan(S.active)||S.plans[0]||EMPTY}
+function getDay(k){
+  if(!S.days[k])S.days[k]={meals:{},extras:[],water:0,checks:{},weight:null};
+  var d=S.days[k];if(!d.meals)d.meals={};if(!d.extras)d.extras=[];if(!d.checks)d.checks={};
+  return d;
+}
+function peekDay(k){return S.days[k]||null}
+function findMeal(id){
+  var a=P();for(var i=0;i<a.meals.length;i++)if(a.meals[i].id===id)return a.meals[i];
+  for(var j=0;j<S.plans.length;j++)for(var k=0;k<S.plans[j].meals.length;k++)if(S.plans[j].meals[k].id===id)return S.plans[j].meals[k];
+  return null;
+}
+function snapOf(m){var t=mealTotals(m);t.n=m.name;return t}
+
+var ui={tab:"today",day:todayKey(),open:null,sheet:null,sheetBack:null,editPlan:null,mp:null,mealId:null,
+  confirmReset:false,confirmDel:null,exportText:"",importMsg:"",tp:null,newMode:"empty"};
+
+/* ================= native hooks (Android app) ================= */
+var CAP=window.Capacitor||null;
+var NATIVE=!!(CAP&&CAP.isNativePlatform&&CAP.isNativePlatform());
+var PL=(NATIVE&&CAP.Plugins)||{};
+var LN=PL.LocalNotifications||null;
+var SB=PL.StatusBar||null;
+function scheduleNative(){
+  if(!LN)return Promise.resolve();
+  var ids=[];for(var i=1;i<=40;i++)ids.push({id:i});
+  return LN.cancel({notifications:ids}).catch(function(){}).then(function(){
+    if(!S.settings.notif)return;
+    var ms=sortedMeals(P()).slice(0,40);
+    return LN.schedule({notifications:ms.map(function(m,i){
+      var t=m.time.split(":");
+      return{id:i+1,title:m.name+" ka time",body:mealSummary(m),smallIcon:"ic_stat_khuraak",iconColor:"#E9B44C",
+        schedule:{on:{hour:+t[0],minute:+t[1]},allowWhileIdle:true}};
+    })});
+  }).catch(function(){});
+}
+function nativeBars(){
+  if(!SB)return;
+  try{
+    var t=S.settings.theme,dark=t==="dark"||(t==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+    SB.setBackgroundColor({color:dark?"#000000":"#edf1ed"});
+    SB.setStyle({style:dark?"DARK":"LIGHT"});
+  }catch(e){}
+}
+
+/* ================= calculations ================= */
+function totals(day,key){
+  var t={kcal:0,p:0,c:0,f:0,mi:microZero(),flags:{}};
+  if(!day)return t;
+  var isToday=key===todayKey();
+  Object.keys(day.meals).forEach(function(id){
+    var st=day.meals[id];if(!st||!st.done)return;
+    var x=st.mult||1,live=findMeal(id),src=null;
+    if(isToday&&live)src=mealTotals(live);
+    else if(st.snap)src=st.snap;
+    else if(live)src=mealTotals(live);
+    if(!src)return;
+    t.kcal+=src.kcal*x;t.p+=src.p*x;t.c+=src.c*x;t.f+=src.f*x;
+    MICRO.forEach(function(q){t.mi[q.k]+=((src.mi&&src.mi[q.k])||0)*x});
+  });
+  (day.extras||[]).forEach(function(e){t.p+=e.p||0;t.c+=e.c||0;t.f+=e.f||0;t.kcal+=e.kcal||0});
+  HABITS.forEach(function(h){
+    if(!day.checks[h.id])return;
+    if(h.add)for(var k in h.add)t.mi[k]+=h.add[k];
+    if(h.flag)t.flags[h.flag]=true;
+  });
+  return t;
+}
+function dayTotals(k){return totals(peekDay(k),k)}
+function refreshSnaps(){
+  var d=peekDay(todayKey());if(!d)return;
+  Object.keys(d.meals).forEach(function(id){var st=d.meals[id],m=findMeal(id);if(st&&st.done&&m)st.snap=snapOf(m)});
+}
+function dayLabel(k){
+  var t=todayKey();
+  if(k===t)return "Aaj";
+  if(k===addDays(t,-1))return "Kal";
+  return parseKey(k).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});
+}
+function goodDay(k){var d=peekDay(k);if(!d)return false;return totals(d,k).kcal>=P().kcal*0.85}
+function streak(){
+  var k=todayKey(),n=0;
+  if(!goodDay(k))k=addDays(k,-1);
+  while(goodDay(k)){n++;k=addDays(k,-1)}
+  return n;
+}
+function changed(){save();refreshSnaps();if(S.settings.notif)scheduleNative()}
+
+/* ================= icons ================= */
+var IC={
+ check:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ left:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+ right:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+ today:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></svg>',
+ plan:'<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>',
+ micro:'<svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="7" rx="3.5" transform="rotate(-35 12 12.5)"/><path d="M9.2 7.7l5.6 7.6"/></svg>',
+ prog:'<svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 8-9"/><path d="M15 6h5v5"/></svg>',
+ shop:'<svg viewBox="0 0 24 24"><path d="M4 9h16l-1.5 10a2 2 0 0 1-2 1.7H7.5a2 2 0 0 1-2-1.7L4 9z"/><path d="M8 9l3-5M16 9l-3-5"/></svg>',
+ more:'<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>'
+};
+var TABS=[["today","Aaj",IC.today],["plan","Plan",IC.plan],["micro","Micro",IC.micro],["prog","Progress",IC.prog],["shop","Samaan",IC.shop],["more","Aur",IC.more]];
+
+/* ================= views ================= */
+function macroBar(n,v,t,col){
+  var w=t>0?Math.min(100,v/t*100):0;
+  return '<div class="macro"><div class="h"><span>'+n+'</span><span class="num"><b>'+r0(v)+'</b> / '+r0(t)+' g</span></div><div class="bar" style="--c:'+col+'"><i style="width:'+w.toFixed(1)+'%"></i></div></div>';
+}
+function timeHtml(t){var x=fmt12(t);return '<div class="time num"><b>'+x.t+'</b><small>'+x.ap+'</small></div>'}
+
+function viewEmptyToday(){
+  return '<div class="top"><div><div class="brand">khuraak<i>.</i></div><div class="streak">Apna diet plan yahan follow karo</div></div></div>'+
+   '<div class="card stack" style="text-align:center;padding:30px 18px"><h2 style="font-size:22px">Apna pehla plan banao</h2><div class="mute">Plan banao, usme khane aur unka time add karo. Phir roz yahan tick karke follow karo.</div><button class="btn block" data-act="firstplan">+ Naya plan banao</button></div>';
+}
+function viewToday(){
+  if(!S.plans.length)return viewEmptyToday();
+  var k=ui.day,day=getDay(k),t=totals(day,k),pl=P(),isToday=k===todayKey();
+  var pct=Math.min(t.kcal/pl.kcal,1),R=54,C=2*Math.PI*R;
+  var over=t.kcal>pl.kcal*1.15,ringCol=t.kcal>=pl.kcal*.95&&!over?"var(--good)":over?"var(--bad)":"var(--accent)";
+  var pt=planTotals(pl),meals=sortedMeals(pl);
+  var h='<div class="top"><div><div class="brand">khuraak<i>.</i></div><div class="streak">'+esc(pl.name)+' · '+(streak()>0?streak()+' din streak':'streak shuru karo')+'</div></div>'+
+   '<div class="daynav"><button data-act="dayprev" aria-label="Pichla din">'+IC.left+'</button><button class="lbl" data-act="daytoday">'+esc(dayLabel(k))+'</button>'+
+   '<button data-act="daynext" aria-label="Agla din"'+(isToday?' disabled':'')+'>'+IC.right+'</button></div></div>';
+
+  h+='<div class="card"><div class="hero"><div class="ring"><svg viewBox="0 0 124 124"><circle cx="62" cy="62" r="'+R+'" fill="none" stroke="var(--s2)" stroke-width="11"/>'+
+   '<circle cx="62" cy="62" r="'+R+'" fill="none" stroke="'+ringCol+'" stroke-width="11" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'"/></svg>'+
+   '<div class="t"><b class="num">'+r0(t.kcal)+'</b><small>/ '+r0(pl.kcal)+' kcal</small></div></div><div>'+
+   macroBar("Protein",t.p,pl.protein,"var(--prot)")+macroBar("Carbs",t.c,pt.c,"var(--carb)")+macroBar("Fat",t.f,pt.f,"var(--fat)")+'</div></div>'+
+   '<div class="left">Baaki: <b class="num">'+Math.max(0,r0(pl.kcal-t.kcal))+' kcal</b> · <b class="num">'+Math.max(0,r0(pl.protein-t.p))+' g protein</b></div></div>';
+
+  if(isToday)h+=nextMealHtml(day,meals);
+
+  var doneN=meals.filter(function(m){return day.meals[m.id]&&day.meals[m.id].done}).length;
+  h+='<div class="sect"><h2>Aaj ka khana</h2><span>'+doneN+' / '+meals.length+' ho gaye</span></div><div class="stack">';
+  if(!meals.length)h+='<div class="card mute">Is plan mein abhi koi khana nahi hai. Plan tab mein jaake add karo.</div>';
+  meals.forEach(function(m){
+    var st=day.meals[m.id]||{},done=!!st.done,x=st.mult||1,open=ui.open===m.id,mt=mealTotals(m);
+    h+='<div class="meal'+(done?' done':'')+'"><div class="head" data-act="open" data-id="'+m.id+'" role="button" tabindex="0">'+timeHtml(m.time)+
+      '<div><div class="nm">'+esc(m.name)+'</div><div class="it">'+esc(mealSummary(m))+'</div></div>'+
+      '<button class="chk" data-act="meal" data-id="'+m.id+'" aria-label="'+(done?'Khaya hua hatao':'Khaya mark karo')+'">'+IC.check+'</button></div>';
+    if(open){
+      h+='<div class="detail"><div class="mini num"><span><b>'+r0(mt.kcal*x)+'</b> kcal</span><span class="p"><b>'+r1(mt.p*x)+'g</b> protein</span><span class="c"><b>'+r1(mt.c*x)+'g</b> carbs</span><span class="f"><b>'+r1(mt.f*x)+'g</b> fat</span></div>'+
+        '<div><div class="lbl2">Kitna khaya?</div><div class="chips">'+
+        [[.5,"½"],[.75,"¾"],[1,"Poora"],[1.25,"1¼"],[1.5,"1½"]].map(function(o){return '<button class="chip'+(x===o[0]?' on':'')+'" data-act="mult" data-id="'+m.id+'" data-v="'+o[0]+'">'+o[1]+'</button>'}).join("")+
+        '</div></div><button class="btn ghost sm" data-act="mealedit" data-id="'+m.id+'" data-p="'+pl.id+'">Ye khana edit karo</button></div>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  var others=Object.keys(day.meals).filter(function(id){
+    var st=day.meals[id];return st&&st.done&&!meals.some(function(m){return m.id===id});
+  });
+  if(others.length){
+    h+='<div class="sect"><h2>Doosre plan ke khane</h2><span>aaj ke hisaab mein ginte hain</span></div><div class="stack">';
+    others.forEach(function(id){
+      var st=day.meals[id],sn=st.snap||(findMeal(id)?snapOf(findMeal(id)):null);if(!sn)return;
+      h+='<div class="other"><div><b>'+esc(sn.n||"Khana")+'</b><div class="mute num">'+r0(sn.kcal*(st.mult||1))+' kcal · '+r1(sn.p*(st.mult||1))+'g protein</div></div><button class="btn ghost sm" data-act="otherdel" data-id="'+id+'">Hatao</button></div>';
+    });
+    h+='</div>';
+  }
+
+  h+='<div class="sect"><h2>Extra khana</h2><span>plan ke bahar</span></div><div class="card">';
+  if(day.extras.length){
+    day.extras.forEach(function(e,i){h+='<div class="ex"><div><b>'+esc(e.n)+'</b><div class="mute num" style="font-size:12px">'+r0(e.kcal)+' kcal · '+r1(e.p)+'g protein</div></div><button class="btn ghost sm" data-act="delex" data-i="'+i+'">Hatao</button></div>'});
+    h+='<div style="height:10px"></div>';
+  }
+  h+='<button class="btn ghost block" data-act="sheet" data-v="extra">+ Extra khana add karo</button></div>';
+
+  var wl=day.water||0,wt=pl.water,glasses=18,on=Math.min(glasses,Math.floor(wl/(wt/glasses)));
+  h+='<div class="sect"><h2>Paani</h2><span>cycle + gym ke liye</span></div><div class="card water"><div class="row spread"><div class="big num">'+(wl/1000).toFixed(2).replace(/\.?0+$/,"")+' <span class="mute" style="font-size:15px;font-family:var(--body);font-weight:500">/ '+(wt/1000)+' L</span></div>'+
+    '<div class="mute" style="font-size:12px">'+(wl>=wt?'Target poora':r0(Math.max(0,wt-wl))+' ml baaki')+'</div></div><div class="drops">';
+  for(var i=0;i<glasses;i++)h+='<i class="'+(i<on?'on':'')+'"></i>';
+  h+='</div><div class="row"><button class="btn ghost sm grow" data-act="water" data-v="-250">− 250</button><button class="btn sm grow" data-act="water" data-v="250">+ 250 ml</button><button class="btn sm grow" data-act="water" data-v="500">+ 500 ml</button></div></div>';
+
+  h+='<div class="sect"><h2>Roz ki aadatein</h2><span>micro nutrients ke liye</span></div><div class="card" style="padding-block:6px">';
+  HABITS.forEach(function(x){var on=!!day.checks[x.id];h+='<button class="hab'+(on?' on':'')+'" data-act="habit" data-id="'+x.id+'"><span class="box">'+IC.check+'</span><span><b>'+esc(x.n)+'</b><small>'+esc(x.s)+'</small></span></button>'});
+  h+='</div>';
+  return h;
+}
+function nextMealHtml(day,meals){
+  var now=new Date(),nm=now.getHours()*60+now.getMinutes();
+  var left=meals.filter(function(m){return !(day.meals[m.id]&&day.meals[m.id].done)});
+  if(!meals.length)return "";
+  if(!left.length)return '<div style="height:12px"></div><div class="next"><div class="when" style="color:var(--good)">✓</div><div><b>Aaj ka plan poora</b><small>Paani aur aadatein neeche check kar lo</small></div></div>';
+  var up=left.filter(function(m){return toMin(m.time)>=nm})[0],late=left.filter(function(m){return toMin(m.time)<nm});
+  var m,cls="",txt,sub,fmt=function(d){return d<60?d+" min":Math.floor(d/60)+"h "+(d%60)+"m"};
+  if(late.length){
+    m=late[late.length-1];var diff=nm-toMin(m.time);
+    cls=" late";txt=fmt(diff);sub="late · "+esc(m.name)+" abhi baaki hai";
+    if(up&&diff>90){m=up;cls="";txt=fmt(toMin(m.time)-nm);sub="baad · "+esc(m.name)+" "+fmt12(m.time).s}
+  }else{m=up;txt=fmt(toMin(m.time)-nm);sub="baad · "+esc(m.name)+" "+fmt12(m.time).s}
+  return '<div style="height:12px"></div><div class="next'+cls+'"><div class="when num">'+txt+'</div><div><b>'+(cls?'Late hai':'Agla khana')+'</b><small>'+sub+'</small></div></div>';
+}
+
+/* ---- plan tab ---- */
+function viewPlan(){
+  if(ui.editPlan&&plan(ui.editPlan))return viewPlanEdit(plan(ui.editPlan));
+  var h='<div class="top"><div><div class="brand">plan<i>.</i></div><div class="streak">Jo plan follow karoge wahi app kholne par dikhega</div></div></div><div class="stack">';
+  S.plans.forEach(function(pl){
+    var t=planTotals(pl),on=pl.id===S.active;
+    h+='<div class="card plan'+(on?' on':'')+'"><div class="row spread"><div class="nm">'+esc(pl.name)+'</div>'+(on?'<span class="tag">Follow kar raha hu</span>':'')+'</div>'+
+      '<div class="mini num"><span><b>'+r0(t.kcal)+'</b> kcal</span><span class="p"><b>'+r0(t.p)+'g</b> protein</span><span>'+pl.meals.length+' khane</span></div><div class="row" style="flex-wrap:wrap">'+
+      (on?'':'<button class="btn sm" data-act="planuse" data-id="'+pl.id+'">Ye follow karo</button>')+
+      '<button class="btn ghost sm" data-act="planedit" data-id="'+pl.id+'">Edit</button>'+
+      '<button class="btn ghost sm" data-act="plandup" data-id="'+pl.id+'">Copy</button>'+
+      (true?(ui.confirmDel===pl.id?'<button class="btn bad sm" data-act="plandelyes" data-id="'+pl.id+'">Pakka hatao</button><button class="btn ghost sm" data-act="plandelno">Nahi</button>':'<button class="btn ghost sm" data-act="plandelask" data-id="'+pl.id+'">Hatao</button>'):'')+
+      '</div></div>';
+  });
+  if(!S.plans.length)h+='<div class="card mute" style="text-align:center">Abhi koi plan nahi hai. Neeche se apna pehla plan banao.</div>';
+  h+='</div><div style="height:12px"></div><button class="btn block" data-act="sheet" data-v="newplan">+ Naya plan banao</button>';
+  h+='<div class="mute" style="font-size:12px;margin:12px 2px">Plan mein khane add, hatao ya time badal sakte ho. Nutrition numbers andaaze hain.</div>';
+  return h;
+}
+function viewPlanEdit(pl){
+  var t=planTotals(pl),ms=sortedMeals(pl),on=pl.id===S.active;
+  var h='<button class="back" data-act="planback">'+IC.left+' Plans</button>'+
+   '<div class="card stack"><label class="f">Plan ka naam<input type="text" id="pn" data-chg="planname" data-id="'+pl.id+'" value="'+esc(pl.name)+'"></label>'+
+   '<div class="grid3"><label class="f">Calories<input type="number" inputmode="numeric" data-chg="plankcal" data-id="'+pl.id+'" value="'+r0(pl.kcal)+'"></label>'+
+   '<label class="f">Protein (g)<input type="number" inputmode="numeric" data-chg="planprot" data-id="'+pl.id+'" value="'+r0(pl.protein)+'"></label>'+
+   '<label class="f">Paani (ml)<input type="number" inputmode="numeric" data-chg="planwater" data-id="'+pl.id+'" value="'+r0(pl.water)+'"></label></div>'+
+   '<div class="sumbar num"><span>Khano ka jod: <b>'+r0(t.kcal)+' kcal</b></span><span><b>'+r0(t.p)+'g</b> P · <b>'+r0(t.c)+'g</b> C · <b>'+r0(t.f)+'g</b> F</span></div>'+
+   '<button class="btn ghost sm" data-act="autotarget" data-id="'+pl.id+'">Target ko khano ke jod jaisa karo</button>'+
+   (on?'':'<button class="btn sm" data-act="planuse" data-id="'+pl.id+'">Ye plan follow karo</button>')+'</div>';
+  h+='<div class="sect"><h2>Khane</h2><span>time ke hisaab se</span></div><div class="stack">';
+  ms.forEach(function(m){
+    var mt=mealTotals(m);
+    h+='<button class="card" style="text-align:left;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center" data-act="mealedit" data-id="'+m.id+'" data-p="'+pl.id+'">'+timeHtml(m.time)+
+      '<div><div style="font-weight:600">'+esc(m.name)+'</div><div class="mute" style="font-size:12px">'+esc(mealSummary(m))+'</div><div class="mute num" style="font-size:12px;margin-top:3px"><b style="color:var(--fg)">'+r0(mt.kcal)+'</b> kcal · '+r0(mt.p)+'g protein</div></div></button>';
+  });
+  h+='</div><div style="height:12px"></div><button class="btn block" data-act="mealnew" data-p="'+pl.id+'">+ Khana add karo</button>';
+  return h;
+}
+
+function viewMicro(){
+  var k=ui.day,day=getDay(k),t=totals(day,k);
+  var h='<div class="top"><div><div class="brand">micro<i>.</i></div><div class="streak">'+esc(dayLabel(k))+' ka hisaab, jo khaya mark kiya uske hisaab se</div></div></div>';
+  h+='<div class="card" style="padding-block:6px">';
+  MICRO.forEach(function(x){
+    var v=t.mi[x.k],p=v/x.t*100,cls=p>=100?"good":p>=70?"warn":"";
+    h+='<div class="mi"><div class="l"><b>'+x.n+'</b><span class="num"><b>'+(x.u==="mcg"||x.k==="fe"||x.k==="zn"||x.k==="fib"?r1(v):r0(v))+'</b> <span class="mute">/ '+x.t+' '+x.u+'</span></span></div>'+
+      '<div class="bar" style="margin-top:7px;--c:'+(p>=100?"var(--good)":"var(--accent)")+'"><i style="width:'+Math.min(100,p).toFixed(1)+'%"></i></div>'+
+      '<div class="row spread"><small>'+esc(x.s)+'</small><span class="pill '+cls+'" style="margin-top:4px">'+(p>=100?"Poora":r0(p)+"%")+'</span></div></div>';
+  });
+  h+='</div><div class="sect"><h2>Checklist wale</h2><span>aadatein se</span></div><div class="card" style="padding-block:6px">';
+  [["Vitamin A","Palak ya gajar sabzi"],["Vitamin D","15 min dhoop"],["Omega-3","Alsi 1 tsp"],["Electrolytes","Nimbu paani + namak"]].forEach(function(f){
+    var on=!!t.flags[f[0]];h+='<div class="mi"><div class="l"><b>'+f[0]+'</b><span class="pill '+(on?'good':'')+'">'+(on?'Ho gaya':'Baaki')+'</span></div><small>'+f[1]+'</small></div>';
+  });
+  h+='</div>';
+  var low=MICRO.filter(function(x){return t.mi[x.k]/x.t<.7});
+  if(low.length&&k===todayKey()&&new Date().getHours()>=20)h+='<div style="height:12px"></div><div class="note warn">Aaj kam hai: <b>'+low.map(function(x){return x.n}).join(", ")+'</b>. Kal sabzi, salad aur nimbu pe dhyan do.</div>';
+  return h;
+}
+
+function weightSeries(){
+  var s=S.settings,pts=[];
+  Object.keys(S.days).sort().forEach(function(k){var w=S.days[k].weight;if(w)pts.push({k:k,w:w})});
+  if(s.startWeight&&s.startDate&&(!pts.length||pts[0].k>s.startDate))pts.unshift({k:s.startDate,w:s.startWeight});
+  return pts;
+}
+function slopePerWeek(pts){
+  var recent=pts.slice(-8);if(recent.length<3)return null;
+  var x0=parseKey(recent[0].k).getTime(),xs=recent.map(function(p){return(parseKey(p.k).getTime()-x0)/864e5}),ys=recent.map(function(p){return p.w});
+  if(xs[xs.length-1]<6)return null;
+  var n=xs.length,sx=0,sy=0,sxy=0,sxx=0;
+  for(var i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxy+=xs[i]*ys[i];sxx+=xs[i]*xs[i]}
+  var den=n*sxx-sx*sx;return den?(n*sxy-sx*sy)/den*7:null;
+}
+function weightChart(pts){
+  var s=S.settings,W=340,H=180,L=34,R=10,T=12,B=24;
+  var first=parseKey(pts[0].k).getTime(),last=Math.max(parseKey(pts[pts.length-1].k).getTime(),parseKey(todayKey()).getTime());
+  var span=Math.max(last-first,7*864e5);
+  var tgt=function(t){return s.startWeight+(t-parseKey(s.startDate).getTime())/864e5/7*.5};
+  var ws=pts.map(function(p){return p.w}).concat([tgt(first),tgt(first+span)]);
+  var mn=Math.floor(Math.min.apply(null,ws)*2-1)/2,mx=Math.ceil(Math.max.apply(null,ws)*2+1)/2;
+  var X=function(t){return L+(t-first)/span*(W-L-R)},Y=function(w){return T+(mx-w)/(mx-mn)*(H-T-B)};
+  var g="";
+  for(var i=0;i<=3;i++){var v=mn+(mx-mn)*i/3;g+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'"/><text x="'+(L-5)+'" y="'+(Y(v)+3).toFixed(1)+'" text-anchor="end">'+r1(v)+'</text>'}
+  var line=pts.map(function(p,i){return(i?"L":"M")+X(parseKey(p.k).getTime()).toFixed(1)+" "+Y(p.w).toFixed(1)}).join(" ");
+  var dots=pts.map(function(p){return '<circle cx="'+X(parseKey(p.k).getTime()).toFixed(1)+'" cy="'+Y(p.w).toFixed(1)+'" r="3.2" fill="var(--fg)"/>'}).join("");
+  var lastP=pts[pts.length-1];
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Weight chart">'+g+
+   '<path d="M'+X(first).toFixed(1)+' '+Y(tgt(first)).toFixed(1)+' L'+X(first+span).toFixed(1)+' '+Y(tgt(first+span)).toFixed(1)+'" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="5 4" fill="none"/>'+
+   '<path d="'+line+'" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linejoin="round"/>'+dots+
+   '<text x="'+(W-R)+'" y="'+(Y(lastP.w)-8).toFixed(1)+'" text-anchor="end" style="fill:var(--fg);font-weight:700;font-size:11px">'+lastP.w+' kg</text>'+
+   '<text x="'+L+'" y="'+(H-6)+'">'+parseKey(pts[0].k).toLocaleDateString("en-IN",{day:"numeric",month:"short"})+'</text>'+
+   '<text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end">'+new Date(last).toLocaleDateString("en-IN",{day:"numeric",month:"short"})+'</text></svg>';
+}
+function calChart(){
+  var kc=P().kcal,W=340,H=150,L=8,R=8,T=10,B=20,n=14,keys=[],i;
+  for(i=n-1;i>=0;i--)keys.push(addDays(todayKey(),-i));
+  var vals=keys.map(function(k){return dayTotals(k).kcal});
+  var mx=Math.max(kc*1.15,Math.max.apply(null,vals)),bw=(W-L-R)/n,out="";
+  keys.forEach(function(k,i){
+    var v=vals[i],h=(v/mx)*(H-T-B),x=L+i*bw+bw*.16,w=bw*.68,col=v>=kc*.9?"var(--good)":v>0?"var(--accent)":"var(--line)";
+    out+='<rect x="'+x.toFixed(1)+'" y="'+(H-B-Math.max(h,2)).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(h,2).toFixed(1)+'" rx="3" fill="'+col+'"/>';
+    out+='<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+parseKey(k).getDate()+'</text>';
+  });
+  var ty=H-B-(kc/mx)*(H-T-B);
+  out+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+ty.toFixed(1)+'" y2="'+ty.toFixed(1)+'" stroke="var(--fg)" stroke-width="1" stroke-dasharray="4 4" opacity=".6"/><text x="'+(W-R)+'" y="'+(ty-4).toFixed(1)+'" text-anchor="end">'+r0(kc)+'</text>';
+  return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Pichhle 14 din ki calories">'+out+'</svg>';
+}
+function calSection(){
+  var pl=P(),keys=[],i,hit=0,sum=0,cnt=0;
+  for(i=0;i<14;i++)keys.push(addDays(todayKey(),-i));
+  keys.forEach(function(k){var d=peekDay(k);if(d){var t=totals(d,k);if(t.kcal>0){cnt++;sum+=t.kcal;if(t.kcal>=pl.kcal*.9&&t.p>=pl.protein*.9)hit++}}});
+  return '<div class="sect"><h2>Pichhle 14 din</h2><span>calories</span></div><div class="card"><div class="stat"><div><b class="num">'+(cnt?r0(sum/cnt):"–")+'</b><small>avg kcal</small></div><div><b class="num">'+hit+'/14</b><small>target wale din</small></div><div><b class="num">'+streak()+'</b><small>din streak</small></div></div>'+calChart()+'</div>';
+}
+function viewProg(){
+  var s=S.settings,pts=weightSeries(),today=getDay(todayKey());
+  var h='<div class="top"><div><div class="brand">progress<i>.</i></div><div class="streak">Target: hafte mein +0.5 kg</div></div></div>';
+  var input='<div class="grid2" style="margin-top:14px;align-items:end"><label class="f">Aaj ka weight (kg)<input id="wIn" type="number" inputmode="decimal" step="0.1" min="30" max="150" placeholder="'+(today.weight||(pts.length?pts[pts.length-1].w:"60.0"))+'" value="'+(today.weight||"")+'"></label><button class="btn" data-act="saveweight">Save</button></div>'+
+    '<div class="mute" style="font-size:12px;margin-top:8px">Subah toilet ke baad, khaane se pehle, roz same kaante pe.</div>';
+  if(!pts.length){
+    h+='<div class="card"><h3>Weight track karo</h3><div class="mute" style="margin-top:6px">Pehla weight daalo. Wahi tumhara shuru ka weight ban jayega, phir chart aur advice yahan dikhenge.</div>'+input+'</div>'+calSection();
+    return h;
+  }
+  var cur=pts[pts.length-1],sl=slopePerWeek(pts),gain=r1(cur.w-s.startWeight);
+  h+='<div class="card"><div class="stat"><div><b class="num">'+cur.w+'</b><small>abhi kg</small></div><div><b class="num">'+(gain>0?"+":"")+gain+'</b><small>shuru se kg</small></div><div><b class="num">'+(sl===null?"–":(sl>0?"+":"")+r1(sl))+'</b><small>kg / hafta</small></div></div>'+
+    weightChart(pts)+
+    '<div class="mute" style="font-size:12px;margin-top:6px"><span style="color:var(--accent)">- - -</span> target &nbsp; <span style="color:var(--fg)">●</span> tumhara weight</div>'+input+'</div>';
+  var adv;
+  if(sl===null)adv='<div class="note">Advice ke liye 1 hafte tak 3-4 baar weight daalo. Abhi data kam hai.</div>';
+  else if(sl<.25)adv='<div class="note warn"><b>Weight dheere badh raha hai.</b> Roz ek roti + 1 glass milk (~+300 kcal) add karo aur 2 hafte baad phir dekho.</div>';
+  else if(sl<=.7)adv='<div class="note good"><b>Bilkul sahi chal raha hai.</b> Plan jaisa hai waisa hi rakho.</div>';
+  else adv='<div class="note warn"><b>Thoda tez badh raha hai.</b> Peanuts ya chawal thoda kam karo (~200-300 kcal), nahi to fat zyada judega.</div>';
+  return h+'<div style="height:12px"></div>'+adv+calSection();
+}
+
+/* ---- grocery from the plan being followed ---- */
+function dailyGroc(pl){
+  var d={};
+  pl.meals.forEach(function(m){m.items.forEach(function(it){
+    if(it.fid&&FOOD[it.fid]&&FOOD[it.fid].g){var g=FOOD[it.fid].g;d[g[0]]=(d[g[0]]||0)+g[1]*(it.qty==null?1:it.qty)}
+  })});
+  return d;
+}
+function fmtQty(g,v){
+  if(g.u==="g")return v>=1000?r1(v/1000)+" kg":r0(v)+" g";
+  if(g.u==="ml")return v>=1000?r1(v/1000)+" L":r0(v)+" ml";
+  if(g.id==="egg"&&v>=12)return r0(v)+" ("+r1(v/12)+" dozen)";
+  return r0(v)+" pc";
+}
+function viewShop(){
+  var days=S.settings.listDays||30,pl=P(),dg=dailyGroc(pl);
+  var h='<div class="top"><div><div class="brand">samaan<i>.</i></div><div class="streak">'+esc(pl.name)+' ke hisaab se kitna lana hai</div></div></div>';
+  h+='<div class="seg" style="margin-bottom:12px">'+[7,15,30].map(function(n){return '<button class="'+(days===n?'on':'')+'" data-act="listdays" data-v="'+n+'">'+n+' din</button>'}).join("")+'</div><div class="card" style="padding-block:6px">';
+  var total=0,any=false;
+  GROC.forEach(function(g){
+    if(!dg[g.id])return;any=true;
+    var on=!!S.bought[g.id],sp=S.spend[g.id]||"";if(sp)total+=+sp;
+    h+='<div class="shop'+(on?' on':'')+'"><button class="hab'+(on?' on':'')+'" style="padding:0;border:0;width:auto" data-act="bought" data-id="'+g.id+'" aria-label="Le liya"><span class="box">'+IC.check+'</span></button>'+
+      '<div class="nm" style="font-weight:600">'+esc(g.n)+'</div><div class="q">'+fmtQty(g,dg[g.id]*days)+'</div><input type="number" inputmode="decimal" min="0" placeholder="₹" aria-label="Kharcha '+esc(g.n)+'" data-chg="spend" data-id="'+g.id+'" value="'+esc(sp)+'"></div>';
+  });
+  if(!any)h+='<div class="mute" style="padding:14px 0">'+(S.plans.length?'Plan mein abhi library wale khane nahi hain, isliye list khali hai.':'Pehle apna plan banao, phir yahan samaan ki list banegi.')+'</div>';
+  h+='</div><div style="height:12px"></div><div class="card row spread"><div><b>Kul kharcha</b><div class="mute" style="font-size:12px">Jo ₹ tum bharo uska jod</div></div><div style="font-family:var(--display);font-size:24px;font-weight:700" class="num">₹'+r0(total)+'</div></div>';
+  h+='<div class="mute" style="font-size:12px;margin:12px 2px">Masale aur namak alag se. Apne khud ke (custom) items is list mein nahi aate. Kharcha apne local rate se khud bharo.</div>';
+  return h;
+}
+
+function viewMore(){
+  var s=S.settings,h='<div class="top"><div><div class="brand">aur<i>.</i></div><div class="streak">Weight, reminder, backup</div></div></div>';
+  h+='<div class="card stack"><h3>Weight tracking</h3><div class="grid2"><label class="f">Shuru ka weight (kg)<input type="number" inputmode="decimal" step="0.1" data-chg="set" data-k="startWeight" value="'+(s.startWeight||"")+'"></label><label class="f">Shuru ki date<input type="text" data-chg="set" data-k="startDate" value="'+(s.startDate||"")+'" placeholder="YYYY-MM-DD"></label></div></div>';
+  h+='<div style="height:12px"></div><div class="card stack"><h3>Reminder</h3><div class="row spread"><div class="grow"><b>Khane ka notification</b><div class="mute" style="font-size:12px">'+(NATIVE?'App band ho tab bhi, chal rahe plan ke har khane ke time pe aayega':'Sirf tab chalta hai jab app khula ho')+'</div></div><button class="btn sm '+(s.notif?'':'ghost')+'" data-act="notif">'+(s.notif?'On':'Off')+'</button></div></div>';
+  h+='<div style="height:12px"></div><div class="card stack"><h3>Theme</h3><div class="seg">'+[["auto","Auto"],["dark","Dark"],["light","Light"]].map(function(o){return '<button class="'+(s.theme===o[0]?'on':'')+'" data-act="theme" data-v="'+o[0]+'">'+o[1]+'</button>'}).join("")+'</div></div>';
+  h+='<div style="height:12px"></div><div class="card stack"><h3>Backup</h3><div class="mute" style="font-size:13px">Data sirf is phone mein hai. Plans aur history ka backup kabhi kabhi copy kar lo.</div>'+
+    '<div class="row"><button class="btn ghost sm grow" data-act="export">Backup banao</button><button class="btn ghost sm grow" data-act="import">Restore karo</button></div>'+
+    (ui.exportText!==""?'<textarea id="bk" aria-label="Backup data">'+esc(ui.exportText)+'</textarea><div class="row"><button class="btn sm grow" data-act="copybk">Copy</button>'+(NATIVE?'':'<button class="btn ghost sm grow" data-act="savebk">File save</button>')+'<button class="btn ghost sm grow" data-act="dobackimport">Restore</button></div>':'')+
+    (ui.importMsg?'<div class="note">'+esc(ui.importMsg)+'</div>':'')+'</div>';
+  h+='<div style="height:12px"></div><div class="card stack"><h3>Reset</h3>'+(ui.confirmReset?'<div class="note bad">Saara data aur plans mit jayenge. Pakka?</div><div class="row"><button class="btn bad sm grow" data-act="reset">Haan, mita do</button><button class="btn ghost sm grow" data-act="resetno">Nahi</button></div>':'<button class="btn ghost sm" data-act="resetask">Saara data mitao</button>')+'</div>';
+  h+='<div class="mute" style="font-size:12px;text-align:center;margin:16px 0 4px">Khuraak · version 3 (fresh, bina preset plan)</div>';
+  return h;
+}
+
+/* ---- sheets ---- */
+function sheetWrap(title,body){
+  return '<div class="scrim" data-act="sheetbg"><div class="sheet" role="dialog" aria-label="'+esc(title)+'"><div class="row spread"><h3>'+esc(title)+'</h3><button class="btn ghost sm" data-act="sheetx">Band</button></div>'+body+'</div></div>';
+}
+function sheetExtra(){
+  return sheetWrap("Extra khana",
+   '<div class="chips">'+PRESETS.map(function(p,i){return '<button class="chip" data-act="preset" data-i="'+i+'">'+esc(p.n)+'</button>'}).join("")+'</div>'+
+   '<label class="f">Naam<input id="xn" type="text" placeholder="Jaise: samosa"></label>'+
+   '<div class="grid2"><label class="f">Protein (g)<input id="xp" type="number" inputmode="decimal" min="0"></label><label class="f">Carbs (g)<input id="xc" type="number" inputmode="decimal" min="0"></label><label class="f">Fat (g)<input id="xf" type="number" inputmode="decimal" min="0"></label><label class="f">Kcal (khali = auto)<input id="xk" type="number" inputmode="decimal" min="0"></label></div>'+
+   '<button class="btn block" data-act="addex">Add karo</button>');
+}
+function curMeal(){
+  var pl=plan(ui.mp);if(!pl)return null;
+  for(var i=0;i<pl.meals.length;i++)if(pl.meals[i].id===ui.mealId)return pl.meals[i];
+  return null;
+}
+function sheetMeal(){
+  var m=curMeal();if(!m)return "";
+  var t=mealTotals(m),x=fmt12(m.time);
+  var h='<label class="f">Khane ka naam<input id="mn" type="text" data-chg="mealname" value="'+esc(m.name)+'"></label>'+
+   '<button class="field" data-act="timeopen"><span>Time</span><b class="num">'+x.s+'</b></button>'+
+   '<div><div class="lbl2">Isme kya kya hai</div>';
+  if(!m.items.length)h+='<div class="mute" style="font-size:13px;padding:8px 0">Abhi kuch nahi hai. Neeche se add karo.</div>';
+  m.items.forEach(function(it,i){
+    var v=itemVals(it),step=it.fid&&FOOD[it.fid]?FOOD[it.fid].step:.5;
+    h+='<div class="irow"><div class="grow"><b>'+esc(v.n)+'</b><div class="sub num">'+esc(v.lab)+' · '+r0(v.kcal)+' kcal · '+r1(v.p)+'g protein</div></div>'+
+      '<div class="stepper"><button data-act="iq" data-i="'+i+'" data-d="-1" aria-label="Kam karo">−</button><button data-act="iq" data-i="'+i+'" data-d="1" aria-label="Badhao">+</button></div>'+
+      '<button class="xbtn" data-act="itemdel" data-i="'+i+'" aria-label="Hatao">×</button></div>';
+  });
+  h+='</div><button class="btn ghost block" data-act="foodsheet">+ Khana add karo (library se ya apna)</button>'+
+   '<div class="sumbar num"><span><b>'+r0(t.kcal)+'</b> kcal</span><span><b>'+r1(t.p)+'g</b> P</span><span><b>'+r1(t.c)+'g</b> C</span><span><b>'+r1(t.f)+'g</b> F</span></div>'+
+   (ui.confirmDel==="meal"?'<div class="row"><button class="btn bad sm grow" data-act="mealdelyes">Pakka hatao</button><button class="btn ghost sm grow" data-act="mealdelno">Nahi</button></div>':'<button class="btn ghost sm" data-act="mealdel">Ye khana plan se hatao</button>');
+  return sheetWrap("Khana edit",h);
+}
+function sheetFood(){
+  var h='<label class="f">Dhundo<input id="fs" type="text" placeholder="anda, roti, dahi..." autocomplete="off"></label><div class="flist">';
+  FOODS.forEach(function(f){
+    var v=itemVals({fid:f.id,qty:f.def});
+    h+='<button class="fitem" data-act="foodadd" data-id="'+f.id+'" data-name="'+esc(f.n.toLowerCase())+'"><span><b>'+esc(f.n)+'</b><small class="num">'+r1(f.def*f.um)+' '+f.us+' · '+r0(v.kcal)+' kcal · '+r1(v.p)+'g protein</small></span><span class="plus">+</span></button>';
+  });
+  h+='</div><div class="lbl2" style="margin-top:4px">Ya apna item (library mein nahi hai to)</div>'+
+   '<label class="f">Naam<input id="cn" type="text" placeholder="Jaise: poha 1 plate"></label>'+
+   '<div class="grid2"><label class="f">Protein (g)<input id="cp" type="number" inputmode="decimal" min="0"></label><label class="f">Carbs (g)<input id="cc" type="number" inputmode="decimal" min="0"></label><label class="f">Fat (g)<input id="cf" type="number" inputmode="decimal" min="0"></label><label class="f">Kcal (khali = auto)<input id="ck" type="number" inputmode="decimal" min="0"></label></div>'+
+   '<button class="btn block" data-act="customadd">Apna item add karo</button><button class="btn ghost block" data-act="sheetx">Ho gaya</button>';
+  return sheetWrap("Khana add karo",h);
+}
+function sheetTime(){
+  var tp=ui.tp;
+  var h='<div class="tpdisp num">'+tp.h+':'+pad(tp.m)+' <span style="font-size:22px;color:var(--mute)">'+tp.ap+'</span></div>'+
+   '<div><div class="lbl2">Ghanta</div><div class="grid6">'+[1,2,3,4,5,6,7,8,9,10,11,12].map(function(n){return '<button class="tcell'+(tp.h===n?' on':'')+'" data-act="tph" data-v="'+n+'">'+n+'</button>'}).join("")+'</div></div>'+
+   '<div><div class="lbl2">Minute</div><div class="grid6">'+[0,5,10,15,20,25,30,35,40,45,50,55].map(function(n){return '<button class="tcell'+(tp.m===n?' on':'')+'" data-act="tpm" data-v="'+n+'">'+pad(n)+'</button>'}).join("")+'</div>'+
+   '<div class="row" style="margin-top:8px"><button class="btn ghost sm grow" data-act="tpmm" data-v="-1">− 1 min</button><button class="btn ghost sm grow" data-act="tpmm" data-v="1">+ 1 min</button></div></div>'+
+   '<div class="seg"><button class="'+(tp.ap==="AM"?'on':'')+'" data-act="tpap" data-v="AM">AM</button><button class="'+(tp.ap==="PM"?'on':'')+'" data-act="tpap" data-v="PM">PM</button></div>'+
+   '<button class="btn block" data-act="tpset">Set karo</button>';
+  return sheetWrap("Time chuno",h);
+}
+function sheetNewPlan(){
+  var modes=[["empty","Khali plan"]];if(S.plans.length)modes.push(["copy","Chal rahe plan ki copy"]);
+  if(ui.newMode==="copy"&&!S.plans.length)ui.newMode="empty";
+  return sheetWrap("Naya plan",
+   '<label class="f">Plan ka naam<input id="np" type="text" placeholder="Jaise: Cutting, Ramzan, Exam time"></label>'+
+   '<div><div class="lbl2">Kahan se shuru karein?</div><div class="chips">'+modes.map(function(o){return '<button class="chip'+(ui.newMode===o[0]?' on':'')+'" data-act="newmode" data-v="'+o[0]+'">'+o[1]+'</button>'}).join("")+'</div></div>'+
+   '<button class="btn block" data-act="plannewgo">Plan banao</button>');
+}
+
+/* ================= render ================= */
+function render(){
+  var app=document.getElementById("app"),y=window.scrollY;
+  var oldSheet=document.querySelector(".sheet"),sy=oldSheet?oldSheet.scrollTop:0;
+  var v={today:viewToday,plan:viewPlan,micro:viewMicro,prog:viewProg,shop:viewShop,more:viewMore}[ui.tab]();
+  var sh="";
+  if(ui.sheet==="extra")sh=sheetExtra();
+  else if(ui.sheet==="meal")sh=sheetMeal();
+  else if(ui.sheet==="food")sh=sheetFood();
+  else if(ui.sheet==="time")sh=sheetTime();
+  else if(ui.sheet==="newplan")sh=sheetNewPlan();
+  app.innerHTML=v+sh;
+  document.getElementById("tabs").innerHTML=TABS.map(function(t){return '<button class="'+(ui.tab===t[0]?'on':'')+'" data-act="tab" data-v="'+t[0]+'">'+t[2]+t[1]+'</button>'}).join("");
+  applyTheme();
+  var ns=document.querySelector(".sheet");if(ns&&oldSheet&&sy)ns.scrollTop=sy;
+  if(window.scrollY!==y)window.scrollTo(0,y);
+}
+function applyTheme(){
+  var el=document.documentElement,t=S.settings.theme;
+  if(t==="auto")el.removeAttribute("data-theme");else el.setAttribute("data-theme",t);
+  if(applyTheme._last!==t){applyTheme._last=t;nativeBars()}
+}
+function toast(msg){
+  var host=document.getElementById("toastHost");host.innerHTML='<div class="toast">'+esc(msg)+'</div>';
+  clearTimeout(toast._t);toast._t=setTimeout(function(){host.innerHTML=""},1700);
+}
+
+/* ---- layers (so the phone's back button closes sheets first) ---- */
+var layers=0;
+function pushLayer(){try{history.pushState({l:1},"");layers++}catch(e){}}
+function closeTopNow(){
+  if(ui.sheet){ui.sheet=ui.sheetBack||null;ui.sheetBack=null;ui.confirmDel=null}
+  else if(ui.editPlan){ui.editPlan=null}
+}
+function closeLayer(){if(layers>0)history.back();else{closeTopNow();render()}}
+window.addEventListener("popstate",function(){if(layers>0)layers--;closeTopNow();render()});
+function openSheet(name,back){ui.sheetBack=back||null;ui.sheet=name;pushLayer()}
+
+/* ================= actions ================= */
+function addExtra(e){var d=getDay(ui.day);d.extras.push(e);save()}
+function newPlanFrom(mode,name){
+  var pl;
+  if(mode==="copy"&&S.plans.length){pl=clone(P());pl.meals.forEach(function(m){m.id=uid("m")})}
+  else pl={meals:[],kcal:3000,protein:120,water:3500};
+  pl.id=uid("p");pl.name=name||"Naya plan";
+  return pl;
+}
+function act(a,el,ev){
+  var d=el.dataset,day=getDay(ui.day),s=S.settings,pl,m,id;
+  switch(a){
+    case "firstplan":ui.tab="plan";openSheet("newplan");break;
+    case "tab":ui.tab=d.v;ui.editPlan=null;ui.confirmDel=null;window.scrollTo(0,0);break;
+    case "dayprev":ui.day=addDays(ui.day,-1);ui.open=null;break;
+    case "daynext":if(ui.day<todayKey())ui.day=addDays(ui.day,1);ui.open=null;break;
+    case "daytoday":ui.day=todayKey();ui.open=null;break;
+    case "open":ui.open=ui.open===d.id?null:d.id;break;
+    case "meal":{
+      var st=day.meals[d.id]||(day.meals[d.id]={});st.done=!st.done;if(!st.mult)st.mult=1;
+      var mm=findMeal(d.id);if(st.done&&mm)st.snap=snapOf(mm);save();break}
+    case "mult":{
+      var st2=day.meals[d.id]||(day.meals[d.id]={});st2.mult=+d.v;st2.done=true;
+      var m2=findMeal(d.id);if(m2)st2.snap=snapOf(m2);save();break}
+    case "otherdel":delete day.meals[d.id];save();break;
+    case "water":day.water=Math.max(0,(day.water||0)+ +d.v);save();break;
+    case "habit":day.checks[d.id]=!day.checks[d.id];save();break;
+    case "sheet":openSheet(d.v);break;
+    case "sheetx":closeLayer();return;
+    case "sheetbg":if(ev.target===el){closeLayer();return}else return;
+    case "preset":{var p=PRESETS[+d.i];addExtra({n:p.n,p:p.p,c:p.c,f:p.f,kcal:Math.round(4*p.p+4*p.c+9*p.f)});toast(p.n+" add ho gaya");break}
+    case "addex":{
+      var n=document.getElementById("xn").value.trim()||"Extra";
+      var Pp=+document.getElementById("xp").value||0,Cc=+document.getElementById("xc").value||0,Ff=+document.getElementById("xf").value||0,K=+document.getElementById("xk").value;
+      if(!K)K=Math.round(4*Pp+4*Cc+9*Ff);
+      if(!K){toast("Kuch values daalo");return}
+      addExtra({n:n,p:Pp,c:Cc,f:Ff,kcal:K});toast("Add ho gaya");closeLayer();return}
+    case "delex":day.extras.splice(+d.i,1);save();break;
+    case "saveweight":{
+      var w=parseFloat(document.getElementById("wIn").value);
+      if(!(w>=30&&w<=150)){toast("Sahi weight daalo");return}
+      var tw=getDay(todayKey());tw.weight=Math.round(w*10)/10;if(!s.startWeight){s.startWeight=tw.weight;s.startDate=todayKey()}save();toast("Weight save ho gaya");break}
+    case "listdays":s.listDays=+d.v;save();break;
+    case "bought":S.bought[d.id]=!S.bought[d.id];save();break;
+    case "theme":s.theme=d.v;save();break;
+    case "notif":toggleNotif();return;
+    case "export":ui.exportText=JSON.stringify(S);ui.importMsg="";break;
+    case "import":ui.exportText=" ";ui.importMsg="Backup yahan paste karo, phir Restore dabao.";break;
+    case "copybk":copyBk();return;
+    case "savebk":saveBk();return;
+    case "dobackimport":doImport();break;
+    case "resetask":ui.confirmReset=true;break;
+    case "resetno":ui.confirmReset=false;break;
+    case "reset":S=defaults();save();ui.confirmReset=false;ui.exportText="";ui.day=todayKey();toast("Data mit gaya");if(S.settings.notif)scheduleNative();break;
+
+    /* plans */
+    case "planuse":S.active=d.id;changed();toast("Ab ye plan chal raha hai");break;
+    case "planedit":ui.editPlan=d.id;pushLayer();window.scrollTo(0,0);break;
+    case "planback":closeLayer();return;
+    case "plandup":{var src=plan(d.id);if(src){var c=clone(src);c.id=uid("p");c.name=src.name+" (copy)";c.meals.forEach(function(x){x.id=uid("m")});S.plans.push(c);save();toast("Copy ban gayi")}break}
+    case "plandelask":ui.confirmDel=d.id;break;
+    case "plandelno":ui.confirmDel=null;break;
+    case "plandelyes":
+      S.plans=S.plans.filter(function(x){return x.id!==d.id});
+      if(S.active===d.id)S.active=S.plans.length?S.plans[0].id:null;
+      ui.confirmDel=null;changed();toast("Plan hat gaya");break;
+    case "newmode":ui.newMode=d.v;break;
+    case "plannewgo":{
+      var nm=document.getElementById("np").value.trim();
+      var np=newPlanFrom(ui.newMode,nm);S.plans.push(np);if(!plan(S.active))S.active=np.id;save();
+      ui.sheet=null;ui.sheetBack=null;
+      /* the sheet's history entry now stands for the editor screen */
+      if(layers===0)pushLayer();
+      ui.editPlan=np.id;ui.tab="plan";window.scrollTo(0,0);toast("Plan ban gaya, ab khane add karo");break}
+    case "autotarget":{pl=plan(d.id);var t=planTotals(pl);pl.kcal=r0(t.kcal);pl.protein=r0(t.p);changed();toast("Target set ho gaya");break}
+
+    /* meals */
+    case "mealedit":ui.mp=d.p;ui.mealId=d.id;ui.confirmDel=null;openSheet("meal");break;
+    case "mealnew":{pl=plan(d.p);m={id:uid("m"),time:"12:00",name:"Naya khana",items:[]};pl.meals.push(m);changed();ui.mp=pl.id;ui.mealId=m.id;ui.confirmDel=null;openSheet("meal");break}
+    case "mealdel":ui.confirmDel="meal";break;
+    case "mealdelno":ui.confirmDel=null;break;
+    case "mealdelyes":{
+      pl=plan(ui.mp);if(pl){pl.meals=pl.meals.filter(function(x){return x.id!==ui.mealId});changed();toast("Khana hat gaya")}
+      ui.confirmDel=null;closeLayer();return}
+    case "iq":{m=curMeal();if(!m)break;var it=m.items[+d.i];if(!it)break;
+      var step=it.fid&&FOOD[it.fid]?FOOD[it.fid].step:.5;
+      var q=Math.round(((it.qty==null?1:it.qty)+step*(+d.d))*100)/100;
+      if(q<=0){m.items.splice(+d.i,1)}else it.qty=q;changed();break}
+    case "itemdel":m=curMeal();if(m){m.items.splice(+d.i,1);changed()}break;
+    case "foodsheet":openSheet("food","meal");break;
+    case "foodadd":{m=curMeal();var f=FOOD[d.id];if(m&&f){
+      var ex=null;m.items.forEach(function(x){if(x.fid===f.id)ex=x});
+      if(ex)ex.qty=Math.round((ex.qty+f.step)*100)/100;else m.items.push({fid:f.id,qty:f.def});
+      changed();toast(f.n+" add ho gaya")}return}
+    case "customadd":{
+      m=curMeal();var cn=document.getElementById("cn").value.trim();
+      var cp=+document.getElementById("cp").value||0,cc=+document.getElementById("cc").value||0,cf=+document.getElementById("cf").value||0,ck=+document.getElementById("ck").value||0;
+      if(!cn){toast("Naam daalo");return}
+      if(!ck&&!cp&&!cc&&!cf){toast("Kuch values daalo");return}
+      var item={n:cn,qty:1,p:cp,c:cc,f:cf};if(ck)item.kcal=ck;
+      if(m){m.items.push(item);changed();toast("Add ho gaya");closeLayer();return}
+      break}
+
+    /* time picker */
+    case "timeopen":{
+      m=curMeal();if(!m)break;
+      var a=m.time.split(":"),hh=+a[0];
+      ui.tp={h:(hh%12)||12,m:+a[1],ap:hh>=12?"PM":"AM"};
+      openSheet("time","meal");break}
+    case "tph":ui.tp.h=+d.v;break;
+    case "tpm":ui.tp.m=+d.v;break;
+    case "tpmm":ui.tp.m=(ui.tp.m+ +d.v+60)%60;break;
+    case "tpap":ui.tp.ap=d.v;break;
+    case "tpset":{
+      m=curMeal();if(m){
+        var h24=ui.tp.h%12+(ui.tp.ap==="PM"?12:0);
+        m.time=pad(h24)+":"+pad(ui.tp.m);changed();
+      }
+      closeLayer();return}
+    default:return;
+  }
+  render();
+}
+function toggleNotif(){
+  var s=S.settings;
+  if(s.notif){s.notif=false;save();scheduleNative();render();return}
+  if(LN){
+    LN.requestPermissions().then(function(r){
+      if(r&&r.display==="granted"){s.notif=true;save();scheduleNative();toast("Reminder on")}else toast("Notification ki permission nahi mili");
+      render();
+    }).catch(function(){toast("Notification nahi chal paya")});
+    return;
+  }
+  if(!("Notification" in window)){toast("Is browser mein notification nahi hai");return}
+  Notification.requestPermission().then(function(p){
+    if(p==="granted"){s.notif=true;save();toast("Reminder on")}else toast("Permission nahi mili");
+    render();
+  }).catch(function(){toast("Notification nahi chal paya")});
+}
+function copyBk(){
+  var ta=document.getElementById("bk");if(!ta)return;
+  var done=function(){toast("Copy ho gaya")},fail=function(){ta.select();toast("Select kiya, ab copy karo")};
+  try{navigator.clipboard.writeText(ta.value).then(done,fail)}catch(e){fail()}
+}
+function saveBk(){
+  try{
+    var b=new Blob([ui.exportText],{type:"application/json"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(b);a.download="khuraak-backup-"+todayKey()+".json";document.body.appendChild(a);a.click();a.remove();
+  }catch(e){toast("File save nahi hui, Copy use karo")}
+}
+function doImport(){
+  var ta=document.getElementById("bk");if(!ta)return;
+  try{
+    var j=JSON.parse(ta.value);if(!j||!j.days||!j.settings)throw 0;
+    S=normalize(j);save();ui.exportText="";ui.importMsg="Restore ho gaya";scheduleNative();
+  }catch(e){ui.importMsg="Ye backup sahi nahi hai. Poora text paste karo."}
+}
+
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-act]");if(!el)return;
+  act(el.dataset.act,el,e);
+});
+document.addEventListener("keydown",function(e){
+  if((e.key==="Enter"||e.key===" ")&&e.target.getAttribute&&e.target.getAttribute("role")==="button"){e.preventDefault();e.target.click()}
+});
+document.addEventListener("input",function(e){
+  if(e.target&&e.target.id==="fs"){
+    var q=e.target.value.trim().toLowerCase();
+    document.querySelectorAll(".fitem").forEach(function(b){b.hidden=q&&b.dataset.name.indexOf(q)<0})
+  }
+});
+document.addEventListener("change",function(e){
+  var el=e.target;if(!el.dataset||!el.dataset.chg)return;
+  var s=S.settings,kind=el.dataset.chg,pl,m;
+  if(kind==="spend"){var v=parseFloat(el.value);if(v>0)S.spend[el.dataset.id]=v;else delete S.spend[el.dataset.id];save();render()}
+  else if(kind==="set"){
+    var k=el.dataset.k;
+    if(k==="startDate"){if(/^\d{4}-\d{2}-\d{2}$/.test(el.value))s.startDate=el.value;else toast("Format: YYYY-MM-DD")}
+    else{var n=parseFloat(el.value);if(n>0){s[k]=n;if(k==="startWeight"&&!s.startDate)s.startDate=todayKey()}}
+    save();render();
+  }else if(kind==="planname"){pl=plan(el.dataset.id);if(pl){pl.name=el.value.trim()||"Mera plan";changed();render()}}
+  else if(kind==="plankcal"||kind==="planprot"||kind==="planwater"){
+    pl=plan(el.dataset.id);var nv=parseFloat(el.value);
+    if(pl&&nv>0){if(kind==="plankcal")pl.kcal=nv;else if(kind==="planprot")pl.protein=nv;else pl.water=nv;changed()}
+    render();
+  }else if(kind==="mealname"){m=curMeal();if(m){m.name=el.value.trim()||"Khana";changed();render()}}
+});
+
+/* reminders on the web (the Android app uses real scheduled notifications) */
+var notified={};
+setInterval(function(){
+  var s=S.settings;
+  if(NATIVE||!s.notif||!("Notification" in window)||Notification.permission!=="granted")return;
+  var now=new Date(),hm=pad(now.getHours())+":"+pad(now.getMinutes()),k=todayKey(),day=peekDay(k);
+  P().meals.forEach(function(m){
+    var id=k+m.id;
+    if(m.time===hm&&!notified[id]&&!(day&&day.meals[m.id]&&day.meals[m.id].done)){
+      notified[id]=1;try{new Notification(m.name+" ka time",{body:mealSummary(m)})}catch(e){}
+    }
+  });
+},20000);
+setInterval(function(){if(ui.tab==="today"&&ui.day===todayKey()&&!ui.sheet&&document.visibilityState==="visible"&&!document.activeElement.matches("input,textarea"))render()},60000);
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){if(ui.day>todayKey())ui.day=todayKey();render()}});
+
+try{if(!NATIVE&&"serviceWorker" in navigator&&/^https?:/.test(location.protocol)&&location.pathname.indexOf("artifact")<0)navigator.serviceWorker.register("sw.js").catch(function(){})}catch(e){}
+
+if(S.settings.notif)scheduleNative();
+render();
+window.__khuraak={S:function(){return S},totals:totals,planTotals:planTotals,P:P,dailyGroc:dailyGroc};
+})();
+</script>
+
+</body>
+</html>
